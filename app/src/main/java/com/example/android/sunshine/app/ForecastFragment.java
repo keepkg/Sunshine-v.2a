@@ -5,9 +5,12 @@ package com.example.android.sunshine.app;
  */
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.text.format.Time;
 import android.util.Log;
@@ -54,6 +57,12 @@ public class ForecastFragment extends Fragment {
         setHasOptionsMenu(true);
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+    }
+
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.forecastfragment, menu);
     }
@@ -64,10 +73,7 @@ public class ForecastFragment extends Fragment {
         if( id == R.id.action_refresh ) {
             // http://api.openweathermap.org/data/2.5/forecast/daily?q=94043,us&mode=json&units=metric&cnt=7
             // API key = 308685849097e82758cc9a3a00a72d07
-
-            FetchWeatherTask weatherTask = new FetchWeatherTask();
-            weatherTask.execute("94043");
-
+            updateWeather();
 
             return true;
         }
@@ -79,6 +85,7 @@ public class ForecastFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
+/*
         String[] forecastArray = {
                 "Today - sunny - 11/11",
                 "Tomorrow - sunny - 22/22",
@@ -89,24 +96,49 @@ public class ForecastFragment extends Fragment {
                 "Sun - sunny - 77/77"
         };
         List<String> weekForecast = new ArrayList<String>( Arrays.asList(forecastArray) );
+*/
 
         mForecastAdapter = new ArrayAdapter<String>(
                 getActivity(),
                 R.layout.list_item_forecast,
                 R.id.list_item_forecast_textview,
-                weekForecast);
+                new ArrayList<String>());
 
         ListView listView = (ListView) rootView.findViewById(R.id.listview_forecast);
         listView.setAdapter(mForecastAdapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+/*
                 Toast toast = Toast.makeText(getActivity(), mForecastAdapter.getItem(i), Toast.LENGTH_SHORT);
                 toast.show();
+*/
+                Intent intent = new Intent(getActivity(), DetailActivity.class);
+                intent.putExtra(Intent.EXTRA_TEXT, mForecastAdapter.getItem(i));
+                startActivity(intent);
+
+                // Verify that the intent will resolve to an activity
+/*
+                if( sendIntent.resolveActivity(getPackageManager()) != null ) {
+                    startActivity(sendIntent);
+                }
+*/
             }
         });
 
         return rootView;
+    }
+
+    private void updateWeather() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String location = prefs.getString(SettingsActivity.KEY_PREF_LOCAION, getString(R.string.pref_location_default));
+        FetchWeatherTask weatherTask = new FetchWeatherTask();
+
+        // lines for debug, to delete in prod
+        Toast toast = Toast.makeText(getActivity(), location, Toast.LENGTH_SHORT);
+        toast.show();
+
+        weatherTask.execute(location);
     }
 
     private class FetchWeatherTask extends AsyncTask<String, Void, String[]> {
@@ -129,13 +161,15 @@ public class ForecastFragment extends Fragment {
             String forecastJsonStr = null;
 
             String format = "";
-            String units = "";
+            String units = "metric";  // mode - possible values are xml and html. If mode parameter is empty the format is JSON by default. see at - http://openweathermap.org/current#format
             int numDays = 7;
 
             try {
                 // Construct the URL for the OpenWeatherMap query
                 // Possible parameters are avaiable at OWM's forecast API page, at
                 // http://openweathermap.org/API#forecast
+                // http://openweathermap.org/current
+                // See example at - http://openweathermap.org/weather-conditions
 //                String baseUrl = "http://api.openweathermap.org/data/2.5/forecast/daily?q=94043&mode=json&units=metric&cnt=7";
 //                String apiKey = "&APPID=" + BuildConfig.OPEN_WEATHER_MAP_API_KEY;
 //                URL url = new URL(baseUrl.concat(apiKey));
@@ -144,13 +178,14 @@ public class ForecastFragment extends Fragment {
                 final String FORMAT_PARAM = "mode";
                 final String UNITS_PARAM = "units";
                 final String DAYS_PARAM = "cnt";
+                final String APPID_PARAM = "APPID";
 
                 Uri builtUri = Uri.parse( FORECAST_BASE_URL ).buildUpon()
-                        .appendQueryParameter(QUERY_PARAM, params[0] )
+                        .appendQueryParameter(QUERY_PARAM, params[0])
                         .appendQueryParameter(FORMAT_PARAM, format)
                         .appendQueryParameter(UNITS_PARAM, units)
                         .appendQueryParameter(DAYS_PARAM, Integer.toString(numDays))
-                        .appendQueryParameter( "APPID", BuildConfig.OPEN_WEATHER_MAP_API_KEY )
+                        .appendQueryParameter(APPID_PARAM, BuildConfig.OPEN_WEATHER_MAP_API_KEY )
                         .build();
 
                 URL url = new URL(builtUri.toString());
@@ -244,10 +279,21 @@ public class ForecastFragment extends Fragment {
          */
         private String formatHighLows(double high, double low) {
             // For presentation, assume the user doesn't care about tenths of a degree.
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            String units = prefs.getString(getString(R.string.pref_units_key), getString(R.string.pref_units_default));
+            // default is Metric units here
+            if( units.equals(getString(R.string.pref_units_imperial)) ) {
+                high = high * 1.8 + 32;
+                low = low * 1.8 + 32;
+            }
+            else if( !units.equals(getString(R.string.pref_units_default)) ) {
+                Log.d(LOG_TAG, "Unit type undefined: " + units);
+            }
+
             long roundedHigh = Math.round(high);
             long roundedLow = Math.round(low);
-
             String highLowStr = roundedHigh + "/" + roundedLow;
+
             return highLowStr;
         }
 
@@ -325,6 +371,8 @@ public class ForecastFragment extends Fragment {
                 String day;
                 String description;
                 String highAndLow;
+
+                // !!! JSON Tutorial at W3Schools Home - http://www.w3schools.com/json/
 
                 // Get the JSON object representing the day
                 JSONObject dayForecast = weatherArray.getJSONObject(i);
