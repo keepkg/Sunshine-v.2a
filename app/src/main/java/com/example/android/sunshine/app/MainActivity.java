@@ -142,8 +142,9 @@ public class MainActivity extends ActionBarActivity {
         // https://developer.android.com/guide/components/intents-common.html#Maps
 
         //  http://developer.android.com/reference/android/content/SharedPreferences.html
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String location = prefs.getString(getString(R.string.pref_location_key), getString(R.string.pref_location_default));
+//        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+//        String location = prefs.getString(getString(R.string.pref_location_key), getString(R.string.pref_location_default));
+        String location = Utility.getPreferredLocation(this);
 
         // Using the URI scheme for showing a location found on a map.  This super-handy
         // intent can is detailed in the "Common Intents" page of Android's developer site:
