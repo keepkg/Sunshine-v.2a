@@ -168,12 +168,6 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
         return rootView;
     }
 
-    @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
-        getLoaderManager().initLoader(FORECAST_LOADER, null, this);
-        super.onActivityCreated(savedInstanceState);
-    }
-
     private void updateWeather() {
 //        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
 //        String location = prefs.getString(SettingsActivity.KEY_PREF_LOCAION, getString(R.string.pref_location_default));
@@ -186,6 +180,12 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
         toast.show();
 
         weatherTask.execute(location);
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        getLoaderManager().initLoader(FORECAST_LOADER, null, this);
+        super.onActivityCreated(savedInstanceState);
     }
 
     @Override
